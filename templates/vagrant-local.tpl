@@ -19,5 +19,11 @@ Vagrant.configure('2') do |config|
     end
   end
 
+  config.vm.provider :parallels do |prl, override|
+    prl.memory = VM_MEMORY
+    prl.cpus = VM_CORES
+    override.vm.synced_folder ".", "/vagrant", mount_options: %w(share)
+  end
+
   config.vm.synced_folder ".", "/vagrant", mount_options: %w( dmode=777 fmode=777 )
 end

@@ -1,0 +1,121 @@
+{
+  "variables": {
+    "version": "0"
+  },
+  "builders": [{
+    "type": "parallels-iso",
+
+    "iso_url": "http://releases.ubuntu.com/14.04/ubuntu-14.04.4-server-amd64.iso",
+    "iso_checksum": "3ffb7a3690ce9a07ac4a4d1b829f990681f7e47d",
+    "iso_checksum_type": "sha1",
+
+    "guest_os_type": "ubuntu",
+    "parallels_tools_guest_path": "/home/vagrant/prl-tools-lin.iso",
+    "parallels_tools_flavor": "lin",
+
+    "boot_wait": "10s",
+    "boot_command": [
+      "<esc><wait>",
+      "<esc><wait>",
+      "<enter><wait>",
+      "/install/vmlinuz<wait>",
+      " auto<wait>",
+      " console-setup/ask_detect=false<wait>",
+      " console-setup/layoutcode=us<wait>",
+      " console-setup/modelcode=pc105<wait>",
+      " debconf/frontend=noninteractive<wait>",
+      " debian-installer=en_US<wait>",
+      " fb=false<wait>",
+      " initrd=/install/initrd.gz<wait>",
+      " kbd-chooser/method=us<wait>",
+      " keyboard-configuration/layout=USA<wait>",
+      " keyboard-configuration/variant=USA<wait>",
+      " locale=en_US<wait>",
+      " netcfg/get_domain=vm<wait>",
+      " netcfg/get_hostname=ubuntu<wait>",
+      " noapic<wait>",
+      " nomodeset<wait>",
+      " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<wait>",
+      " -- <wait>",
+      "<enter><wait>"
+    ],
+
+    "http_directory": "http",
+
+    "ssh_username": "vagrant",
+    "ssh_password": "vagrant",
+    "ssh_wait_timeout": "60m",
+
+    "disk_size": 81920,
+
+    "shutdown_command": "echo 'vagrant' | sudo -S shutdown -P now",
+
+    "prlctl": [
+      [ "set", "{{.Name}}", "--memsize", "1024" ],
+      [ "set", "{{.Name}}", "--cpus", "1" ]
+    ]
+  }],
+
+  "provisioners": [{
+    "type": "shell",
+    "execute_command": "echo 'vagrant' | {{ .Vars }} sudo -S -E {{ .Path }}",
+    "scripts": [
+      "scripts/update-resolv.conf.sh",
+      "scripts/quiet-tty-warning.sh",
+      "scripts/apt-update.sh",
+      "scripts/update-trusty-kernel.sh",
+      "scripts/parallels-tools.sh",
+      "scripts/kernel-cleanup.sh",
+      "scripts/admin-sudoers.sh",
+      "scripts/increase-loop-devices.sh",
+      "scripts/setup-syslog.sh"
+    ]
+  },{
+    "type": "shell",
+    "scripts": [ "scripts/vagrant-pub-key.sh" ]
+  },{
+    "type": "shell",
+    "inline": "echo 'vagrant' | sudo -S usermod -a -G admin vagrant"
+  },{
+    "type": "file",
+    "source": "concourse_linux_amd64",
+    "destination": "/tmp/concourse"
+  },{
+    "type": "shell",
+    "execute_command": "echo 'vagrant' | {{ .Vars }} sudo -S -E {{ .Path }}",
+    "inline": "install /tmp/concourse /usr/local/bin/concourse"
+  },{
+    "type": "file",
+    "source": "upstart/concourse-worker.conf",
+    "destination": "/tmp/concourse-worker.conf"
+  },{
+    "type": "file",
+    "source": "upstart/concourse-web.conf",
+    "destination": "/tmp/concourse-web.conf"
+  },{
+    "type": "shell",
+    "execute_command": "echo 'vagrant' | {{ .Vars }} sudo -S -E {{ .Path }}",
+    "inline": "mv /tmp/concourse-*.conf /etc/init"
+  },{
+    "type": "shell",
+    "execute_command": "echo 'vagrant' | {{ .Vars }} sudo -S -E {{ .Path }}",
+    "scripts": [
+      "scripts/generate-concourse-keys.sh",
+      "scripts/setup-postgresql.sh"
+    ]
+  },{
+    "type": "shell",
+    "execute_command": "echo 'vagrant' | {{ .Vars }} sudo -S -E {{ .Path }}",
+    "scripts": [
+      "scripts/clean-up.sh",
+      "scripts/shrink-disk.sh"
+    ]
+  }],
+
+  "post-processors": [{
+    "type": "vagrant",
+    "keep_input_artifact": true,
+    "vagrantfile_template": "templates/vagrant-local.tpl",
+    "output": "concourse-{{ .Provider }}-ubuntu-trusty-{{user `version`}}.box"
+  }]
+}
